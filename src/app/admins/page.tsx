@@ -1,13 +1,21 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/store/useAuthStore';
-import { api } from '@/lib/api';
+import { api, getErrorMessage } from '@/lib/api';
 import Sidebar from '@/components/Sidebar';
-import { Plus, UserPlus, Mail, Lock, Shield, User } from 'lucide-react';
+import { UserPlus, Mail, Lock, Shield, User } from 'lucide-react';
+
+interface AdminUser {
+  _id?: string;
+  id?: string;
+  name: string;
+  email: string;
+  role: string;
+  createdAt?: string;
+}
 
 export default function AdminsPage() {
-  const [admins, setAdmins] = useState<any[]>([]);
+  const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
@@ -24,12 +32,10 @@ export default function AdminsPage() {
   const fetchAdmins = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/users');
-      // The API might return all users, we filter for admins
-      const allUsers = res.data.data.users || res.data.data;
-      const adminUsers = allUsers.filter((u: any) => u.role === 'admin' || u.role === 'ADMIN');
-      setAdmins(adminUsers);
-    } catch (err: any) {
+      // /users is paginated, so filter by role server-side instead of on a single page
+      const res = await api.get('/users', { params: { role: 'admin', limit: 100 } });
+      setAdmins(res.data.data.users || []);
+    } catch (err) {
       console.error('Failed to fetch admins:', err);
       setError('Failed to load administrators.');
     } finally {
@@ -54,9 +60,9 @@ export default function AdminsPage() {
       setPassword('');
       setShowAddForm(false);
       fetchAdmins();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to add admin:', err);
-      setError(err.response?.data?.message || 'Failed to create new admin account.');
+      setError(getErrorMessage(err, 'Failed to create new admin account.'));
     } finally {
       setSubmitting(false);
     }

@@ -1,32 +1,25 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
-import { api } from '@/lib/api';
+import { api, getErrorMessage } from '@/lib/api';
 import Sidebar from '@/components/Sidebar';
-import ProductForm from '@/components/ProductForm';
+import ProductForm, { ProductFormData } from '@/components/ProductForm';
 
 export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const productId = resolvedParams.id;
 
-  const [product, setProduct] = useState<any>(null);
+  const [product, setProduct] = useState<ProductFormData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const res = await api.get(`/products`);
-        const list = res.data.data?.products || res.data.data || [];
-        const found = list.find((p: any) => p._id === productId);
-
-        if (found) {
-          setProduct(found);
-        } else {
-          setError('Product not found.');
-        }
-      } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to fetch product details.');
+        const res = await api.get(`/products/${productId}`);
+        setProduct(res.data.data.product);
+      } catch (err) {
+        setError(getErrorMessage(err, 'Failed to fetch product details.'));
       } finally {
         setLoading(false);
       }
@@ -48,7 +41,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             {error}
           </div>
         ) : (
-          <ProductForm initialData={product} productId={productId} />
+          <ProductForm initialData={product ?? undefined} productId={productId} />
         )}
       </main>
     </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, getErrorMessage } from '@/lib/api';
 import Sidebar from '@/components/Sidebar';
 import { DollarSign, ShoppingBag, Package, Users, TrendingUp, RefreshCw } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -28,8 +28,8 @@ export default function DashboardPage() {
     try {
       const response = await api.get('/admin/analytics/dashboard');
       setStats(response.data.data.stats);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load revenue analytics.');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to load revenue analytics.'));
     } finally {
       setLoading(false);
     }
@@ -143,7 +143,7 @@ export default function DashboardPage() {
                     <YAxis stroke="#64748b" fontSize={12} tickLine={false} />
                     <Tooltip
                       contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc' }}
-                      formatter={(value: any) => [`₹${value}`, 'Revenue']}
+                      formatter={(value) => [`₹${value}`, 'Revenue']}
                     />
                     <Area type="monotone" dataKey="totalSales" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#salesGrad)" />
                   </AreaChart>

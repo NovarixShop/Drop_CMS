@@ -1,17 +1,34 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { api } from '@/lib/api';
+import { api, getErrorMessage } from '@/lib/api';
 import Sidebar from '@/components/Sidebar';
-import { Tag, Plus, Trash2, Calendar, Clock, Percent } from 'lucide-react';
+import { Tag, Plus, Trash2, Calendar, Percent } from 'lucide-react';
+
+interface Deal {
+  _id?: string;
+  id?: string;
+  name: string;
+  description?: string;
+  discountPercentage: number;
+  startTime: string;
+  endTime: string;
+}
+
+interface DealProduct {
+  _id?: string;
+  id?: string;
+  name: string;
+  price: number;
+}
 
 export default function DealsPage() {
-  const [deals, setDeals] = useState<any[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
   const [showAddForm, setShowAddForm] = useState(false);
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<DealProduct[]>([]);
   
   // Form State
   const [name, setName] = useState('');
@@ -32,7 +49,7 @@ export default function DealsPage() {
       setLoading(true);
       const res = await api.get('/deals');
       setDeals(res.data.data.deals);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to fetch deals:', err);
       setError('Failed to load deals.');
     } finally {
@@ -44,7 +61,7 @@ export default function DealsPage() {
     try {
       const res = await api.get('/products?limit=100');
       setProducts(res.data.data.products);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to fetch products:', err);
     }
   };
@@ -74,21 +91,22 @@ export default function DealsPage() {
       setShowAddForm(false);
       
       fetchDeals();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to add deal:', err);
-      setError(err.response?.data?.message || 'Failed to create deal.');
+      setError(getErrorMessage(err, 'Failed to create deal.'));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id?: string) => {
+    if (!id) return;
     if (!confirm('Are you sure you want to delete this deal?')) return;
     
     try {
       await api.delete(`/deals/${id}`);
       fetchDeals();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to delete deal:', err);
       alert('Failed to delete deal');
     }

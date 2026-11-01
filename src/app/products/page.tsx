@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { api } from '@/lib/api';
+import { api, getErrorMessage } from '@/lib/api';
 import Sidebar from '@/components/Sidebar';
 import { Plus, Search, Trash2, Edit, AlertCircle, RefreshCw } from 'lucide-react';
 
@@ -39,8 +38,8 @@ export default function ProductsPage() {
       const res = await api.get('/products', { params: { limit: 100 } });
       const data = res.data.data;
       setProducts(data.products || data);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch products.');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to fetch products.'));
     } finally {
       setLoading(false);
     }
@@ -56,8 +55,8 @@ export default function ProductsPage() {
     try {
       await api.delete(`/products/${id}`);
       setProducts(products.filter((p) => p._id !== id));
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete product.');
+    } catch (err) {
+      alert(getErrorMessage(err, 'Failed to delete product.'));
     }
   };
 
@@ -145,6 +144,7 @@ export default function ProductsPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-lg bg-slate-800 overflow-hidden relative flex-shrink-0 border border-slate-700">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={mainImg}
                                 alt={product.name}

@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Store, Lock, Mail } from 'lucide-react';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('novarixshop5@gmail.com');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -22,7 +23,7 @@ export default function LoginPage() {
 
     try {
       const response = await api.post('/auth/login', { email, password });
-      const { token, user } = response.data.data;
+      const { accessToken, user } = response.data.data;
 
       const userRole = user.role?.toLowerCase();
       if (userRole !== 'admin' && userRole !== 'vendor') {
@@ -31,13 +32,13 @@ export default function LoginPage() {
         return;
       }
 
-      setAuth(token, user);
+      setAuth(accessToken, user);
       router.push('/dashboard');
-    } catch (err: any) {
-      const serverData = err.response?.data;
+    } catch (err) {
+      const serverData = axios.isAxiosError(err) ? err.response?.data : undefined;
       if (serverData?.errors) {
-        const details = Object.entries(serverData.errors)
-          .map(([field, msgs]: any) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+        const details = Object.entries(serverData.errors as Record<string, string[] | string>)
+          .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
           .join(' | ');
         setError(`Validation error (${details})`);
       } else {

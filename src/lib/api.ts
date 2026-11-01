@@ -2,6 +2,10 @@ import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5010/api';
 
+// Extract the server's error message from an API failure, falling back to a default
+export const getErrorMessage = (err: unknown, fallback: string): string =>
+  (axios.isAxiosError(err) && err.response?.data?.message) || fallback;
+
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -21,9 +25,9 @@ api.interceptors.request.use((config) => {
 });
 
 let isRefreshing = false;
-let failedQueue: any[] = [];
+let failedQueue: { resolve: (value?: unknown) => void; reject: (reason?: unknown) => void }[] = [];
 
-const processQueue = (error: any, token: string | null = null) => {
+const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
@@ -61,12 +65,6 @@ api.interceptors.response.use(
         localStorage.setItem('cms_admin_token', newAccessToken);
         
         // Update user state token as well if needed
-        const userStr = localStorage.getItem('cms_admin_user');
-        if (userStr) {
-           // We do not need to update useAuthStore here as modifying localStorage 
-           // and retrying the request is sufficient for the immediate API call.
-        }
-
         api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         

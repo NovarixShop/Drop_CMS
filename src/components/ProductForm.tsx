@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
-import { ArrowLeft, Save, Loader2, ImagePlus } from 'lucide-react';
+import { api, getErrorMessage } from '@/lib/api';
+import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 interface Category {
@@ -11,8 +11,19 @@ interface Category {
   name: string;
 }
 
+export interface ProductFormData {
+  name?: string;
+  description?: string;
+  price?: number;
+  compareAtPrice?: number;
+  category?: Category | string;
+  images?: string[];
+  stock?: number;
+  lowStockThreshold?: number;
+}
+
 interface ProductFormProps {
-  initialData?: any;
+  initialData?: ProductFormData;
   productId?: string;
 }
 
@@ -28,13 +39,13 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
   const [price, setPrice] = useState(initialData?.price || '');
   const [compareAtPrice, setCompareAtPrice] = useState(initialData?.compareAtPrice || '');
   const [categoryId, setCategoryId] = useState(
-    typeof initialData?.category === 'object' ? initialData?.category?._id : initialData?.category || ''
+    typeof initialData?.category === 'object' ? initialData.category._id : initialData?.category || ''
   );
   const [imagesText, setImagesText] = useState(
     Array.isArray(initialData?.images) ? initialData.images.join(', ') : ''
   );
-  const [stock, setStock] = useState(initialData?.stock ?? 10);
-  const [lowStockThreshold, setLowStockThreshold] = useState(initialData?.lowStockThreshold ?? 5);
+  const [stock, setStock] = useState<number | string>(initialData?.stock ?? 10);
+  const [lowStockThreshold, setLowStockThreshold] = useState<number | string>(initialData?.lowStockThreshold ?? 5);
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -52,6 +63,8 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
       }
     };
     loadCategories();
+    // Only load categories once; categoryId is read just to pick a default
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,8 +95,8 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
         await api.post('/products', payload);
       }
       router.push('/products');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to save product. Please check form values.');
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to save product. Please check form values.'));
     } finally {
       setLoading(false);
     }
@@ -248,6 +261,7 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
               <div className="flex flex-wrap gap-3">
                 {previewImages.map((url: string, idx: number) => (
                   <div key={idx} className="w-20 h-20 rounded-xl bg-slate-950 border border-slate-800 overflow-hidden relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={url} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
                   </div>
                 ))}
