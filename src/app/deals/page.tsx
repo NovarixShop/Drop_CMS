@@ -39,14 +39,9 @@ export default function DealsPage() {
   const [selectedProduct, setSelectedProduct] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchDeals();
-    fetchProducts();
-  }, []);
-
+  // State is only set after the request returns, so these are safe to call from an effect
   const fetchDeals = async () => {
     try {
-      setLoading(true);
       const res = await api.get('/deals');
       setDeals(res.data.data.deals);
     } catch (err) {
@@ -65,6 +60,11 @@ export default function DealsPage() {
       console.error('Failed to fetch products:', err);
     }
   };
+
+  useEffect(() => {
+    fetchDeals();
+    fetchProducts();
+  }, []);
 
   const handleAddDeal = async (e: React.FormEvent) => {
     e.preventDefault();

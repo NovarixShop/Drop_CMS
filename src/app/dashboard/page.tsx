@@ -22,12 +22,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const fetchStats = async () => {
-    setLoading(true);
-    setError('');
+  // State is only set after the request returns, so this is safe to call from an effect
+  const loadStats = async () => {
     try {
       const response = await api.get('/admin/analytics/dashboard');
       setStats(response.data.data.stats);
+      setError('');
     } catch (err) {
       setError(getErrorMessage(err, 'Failed to load revenue analytics.'));
     } finally {
@@ -35,8 +35,14 @@ export default function DashboardPage() {
     }
   };
 
+  const refreshStats = () => {
+    setLoading(true);
+    setError('');
+    loadStats();
+  };
+
   useEffect(() => {
-    fetchStats();
+    loadStats();
   }, []);
 
   return (
@@ -50,7 +56,7 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-400 mt-1">Real-time revenue tracking and performance metrics</p>
           </div>
           <button
-            onClick={fetchStats}
+            onClick={refreshStats}
             disabled={loading}
             className="flex items-center gap-2 px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-all text-sm font-medium"
           >
