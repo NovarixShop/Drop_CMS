@@ -3,8 +3,16 @@ import axios from 'axios';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5010/api';
 
 // Extract the server's error message from an API failure, falling back to a default
-export const getErrorMessage = (err: unknown, fallback: string): string =>
-  (axios.isAxiosError(err) && err.response?.data?.message) || fallback;
+// Validation failures (422) also list the offending fields, e.g. "images.2: Each image must be a valid http(s) URL"
+export const getErrorMessage = (err: unknown, fallback: string): string => {
+  if (!axios.isAxiosError(err)) return fallback;
+  const data = err.response?.data as { message?: string; errors?: Record<string, string[]> } | undefined;
+  const fieldErrors = data?.errors
+    ? Object.entries(data.errors).map(([field, msgs]) => `${field}: ${msgs.join(', ')}`)
+    : [];
+  if (fieldErrors.length > 0) return `${data?.message || 'Validation failed'} (${fieldErrors.join('; ')})`;
+  return data?.message || (err.response ? fallback : 'Cannot reach the server. Check your connection.');
+};
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -74,6 +82,8 @@ api.interceptors.response.use(
         processQueue(refreshError, null);
         localStorage.removeItem('cms_admin_token');
         if (window.location.pathname !== '/login') {
+          // Runs inside an axios interceptor (outside React), so a full page load is intended here
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
           window.location.href = '/login';
         }
         return Promise.reject(refreshError);
