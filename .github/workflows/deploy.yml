@@ -57,6 +57,11 @@ jobs:
           port: ${{ secrets.HOSTINGER_SSH_PORT || 22 }}
           script_stop: true
           script: |
+            # Load environment paths (NVM, npm, PM2) for non-interactive SSH sessions
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            export PATH="$PATH:/usr/local/bin:/usr/bin:$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | tail -1)/bin"
+
             TARGET_DIR="${{ secrets.HOSTINGER_CMS_DIR || '/var/www/Drop_CMS' }}"
             echo "🚀 Deploying CMS to $TARGET_DIR on Hostinger VPS..."
             
@@ -73,15 +78,13 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             
-            echo "📦 Installing dependencies and compiling Next.js production build..."
+            echo "📦 Clearing stale Next cache and compiling fresh production build..."
+            rm -rf .next/cache
             npm ci
             npm run build
             
-            # Restart PM2 process (restart terminates and reloads npm-spawned Next server in fork mode)
-            if command -v pm2 &> /dev/null; then
-              echo "🔄 Restarting PM2 process 'drop-cms'..."
-              pm2 restart drop-cms --update-env || pm2 restart all || pm2 start npm --name "drop-cms" -- start -- -p 3001
-              pm2 save
-            fi
+            echo "🔄 Restarting CMS server on PM2..."
+            pm2 restart drop-cms --update-env || pm2 restart all || pm2 start npm --name "drop-cms" -- start -- -p 3001
+            pm2 save
             
             echo "✅ CMS deployment complete!"
