@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { LayoutDashboard, Package, LogOut, Store, Users, Tag } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -25,14 +26,14 @@ export default function Sidebar() {
   return (
     <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between min-h-screen p-4">
       <div>
-        <div className="flex items-center gap-3 px-3 py-4 mb-6 border-b border-slate-800">
-          <div className="bg-indigo-600 p-2 rounded-lg text-white">
-            <Store className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="font-bold text-lg text-white tracking-wider">NOVARIX</h1>
-            <p className="text-xs text-slate-400">CMS Control Panel</p>
-          </div>
+        <div className="flex items-center gap-3 px-3 py-3 mb-6 border-b border-slate-800">
+          <Image
+            src="/logo-dark.png"
+            alt="NOVARIX"
+            width={140}
+            height={44}
+            className="h-10 w-auto object-contain"
+          />
         </div>
 
         <nav className="space-y-1">
