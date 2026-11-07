@@ -31,13 +31,13 @@ export default function ProductsPage() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
 
-  const fetchProducts = async () => {
-    setLoading(true);
-    setError('');
+  // State is only set after the request returns, so this is safe to call from an effect
+  const loadProducts = async () => {
     try {
       const res = await api.get('/products', { params: { limit: 100 } });
       const data = res.data.data;
       setProducts(data.products || data);
+      setError('');
     } catch (err) {
       setError(getErrorMessage(err, 'Failed to fetch products.'));
     } finally {
@@ -45,8 +45,14 @@ export default function ProductsPage() {
     }
   };
 
+  const refreshProducts = () => {
+    setLoading(true);
+    setError('');
+    loadProducts();
+  };
+
   useEffect(() => {
-    fetchProducts();
+    loadProducts();
   }, []);
 
   const handleDelete = async (id: string, name: string) => {
@@ -102,7 +108,7 @@ export default function ProductsPage() {
             />
           </div>
           <button
-            onClick={fetchProducts}
+            onClick={refreshProducts}
             className="p-2 text-slate-400 hover:text-white bg-slate-900 border border-slate-800 rounded-xl"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
