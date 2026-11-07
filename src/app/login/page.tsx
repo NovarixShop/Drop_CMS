@@ -37,13 +37,21 @@ export default function LoginPage() {
       router.push('/dashboard');
     } catch (err) {
       const serverData = axios.isAxiosError(err) ? err.response?.data : undefined;
+      const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+
       if (serverData?.errors) {
         const details = Object.entries(serverData.errors as Record<string, string[] | string>)
           .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
           .join(' | ');
         setError(`Validation error (${details})`);
+      } else if (serverData?.message) {
+        setError(serverData.message);
+      } else if (status && status >= 500) {
+        setError(`Authentication service error (${status}). The auth microservice is offline or initializing. Please retry shortly.`);
+      } else if (axios.isAxiosError(err) && !err.response) {
+        setError('Cannot connect to API server. Please verify your internet connection.');
       } else {
-        setError(serverData?.message || 'Login failed. Please check your credentials.');
+        setError('Login failed. Please check your credentials.');
       }
     } finally {
       setLoading(false);
