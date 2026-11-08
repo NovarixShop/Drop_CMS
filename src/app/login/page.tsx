@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/useAuthStore';
-import { Store, Lock, Mail } from 'lucide-react';
+import { Lock, Mail } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');

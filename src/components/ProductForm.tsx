@@ -3,13 +3,21 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, getErrorMessage } from '@/lib/api';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Plus, X, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import Link from 'next/link';
 import ProductImageManager from '@/components/ProductImageManager';
 
 interface Category {
   _id: string;
   name: string;
+  level?: number;
+}
+
+interface CategoryTreeNode {
+  _id: string;
+  name: string;
+  children?: CategoryTreeNode[];
 }
 
 export interface ProductFormData {
@@ -47,25 +55,74 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
   const [stock, setStock] = useState<number | string>(initialData?.stock ?? 10);
   const [lowStockThreshold, setLowStockThreshold] = useState<number | string>(initialData?.lowStockThreshold ?? 5);
 
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        const res = await api.get('/categories');
-        const list = res.data.data?.categories || res.data.data || [];
-        setCategories(list);
-        if (!categoryId && list.length > 0) {
-          setCategoryId(list[0]._id);
-        }
-      } catch (err) {
-        console.error('Failed to load categories', err);
-      } finally {
-        setFetchingCategories(false);
+  // Quick Add Category state
+  const [showQuickAddCat, setShowQuickAddCat] = useState(false);
+  const [quickCatName, setQuickCatName] = useState('');
+  const [quickCatParent, setQuickCatParent] = useState('');
+  const [creatingCat, setCreatingCat] = useState(false);
+
+  const flattenCategoryTree = (nodes: CategoryTreeNode[], level = 0): Category[] => {
+    let result: Category[] = [];
+    for (const node of nodes) {
+      result.push({ _id: node._id, name: node.name, level });
+      if (node.children && node.children.length > 0) {
+        result = result.concat(flattenCategoryTree(node.children, level + 1));
       }
-    };
+    }
+    return result;
+  };
+
+  const loadCategories = async () => {
+    try {
+      const res = await api.get('/categories');
+      const list = res.data.data?.categories || res.data.data || [];
+      const flat = flattenCategoryTree(list);
+      setCategories(flat);
+      if (!categoryId && flat.length > 0) {
+        setCategoryId(flat[0]._id);
+      }
+    } catch (err) {
+      console.error('Failed to load categories', err);
+    } finally {
+      setFetchingCategories(false);
+    }
+  };
+
+  useEffect(() => {
     loadCategories();
     // Only load categories once; categoryId is read just to pick a default
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleQuickAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickCatName.trim()) return;
+    setCreatingCat(true);
+    try {
+      const res = await api.post('/categories', {
+        name: quickCatName.trim(),
+        parentCategory: quickCatParent || null,
+      });
+      const newCat = res.data.data?.category;
+      toast.success(`Category "${quickCatName.trim()}" created!`);
+      setQuickCatName('');
+      setQuickCatParent('');
+      setShowQuickAddCat(false);
+      
+      // Reload categories and automatically select the newly created one
+      const catRes = await api.get('/categories');
+      const list = catRes.data.data?.categories || catRes.data.data || [];
+      const flat = flattenCategoryTree(list);
+      setCategories(flat);
+      if (newCat?._id) {
+        setCategoryId(newCat._id);
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to create category.'));
+    } finally {
+      setCreatingCat(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,9 +213,33 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Category *</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-semibold text-slate-300 uppercase">
+                Category *
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowQuickAddCat(true)}
+                className="text-xs text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>New Category</span>
+              </button>
+            </div>
             {fetchingCategories ? (
               <p className="text-xs text-slate-500">Loading categories...</p>
+            ) : categories.length === 0 ? (
+              <div className="p-4 bg-slate-950 border border-dashed border-slate-800 rounded-xl text-center space-y-2">
+                <p className="text-xs text-slate-400">No categories found in store.</p>
+                <button
+                  type="button"
+                  onClick={() => setShowQuickAddCat(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Create First Category</span>
+                </button>
+              </div>
             ) : (
               <select
                 required
@@ -169,6 +250,7 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
                 <option value="">Select a category</option>
                 {categories.map((cat) => (
                   <option key={cat._id} value={cat._id}>
+                    {cat.level && cat.level > 0 ? `— `.repeat(cat.level) : ''}
                     {cat.name}
                   </option>
                 ))}
@@ -262,6 +344,86 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
           </button>
         </div>
       </form>
+
+      {/* Quick Add Category Modal */}
+      {showQuickAddCat && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400">
+                  <Plus className="w-5 h-5" />
+                </div>
+                <h2 className="text-lg font-bold text-white">Add New Category</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowQuickAddCat(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleQuickAddCategory} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase text-slate-300 mb-1.5">
+                  Category Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={quickCatName}
+                  onChange={(e) => setQuickCatName(e.target.value)}
+                  placeholder="e.g. Footwear, Electronics, Accessories"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase text-slate-300 mb-1.5">
+                  Parent Category (Optional)
+                </label>
+                <select
+                  value={quickCatParent}
+                  onChange={(e) => setQuickCatParent(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
+                >
+                  <option value="">None (Top-Level Category)</option>
+                  {categories.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.level && c.level > 0 ? `— `.repeat(c.level) : ''} {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowQuickAddCat(false)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingCat}
+                  className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-5 py-2 rounded-xl text-sm transition-all shadow-md shadow-indigo-600/20 disabled:opacity-50 cursor-pointer"
+                >
+                  {creatingCat ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  <span>Create & Select</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
