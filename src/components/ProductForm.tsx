@@ -29,6 +29,9 @@ export interface ProductFormData {
   images?: string[];
   stock?: number;
   lowStockThreshold?: number;
+  tax?: number;
+  shippingCost?: number;
+  isCodAvailable?: boolean;
 }
 
 interface ProductFormProps {
@@ -54,6 +57,9 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
   const [uploadingImages, setUploadingImages] = useState(false);
   const [stock, setStock] = useState<number | string>(initialData?.stock ?? 10);
   const [lowStockThreshold, setLowStockThreshold] = useState<number | string>(initialData?.lowStockThreshold ?? 5);
+  const [tax, setTax] = useState<number | string>(initialData?.tax ?? 0);
+  const [shippingCost, setShippingCost] = useState<number | string>(initialData?.shippingCost ?? 0);
+  const [isCodAvailable, setIsCodAvailable] = useState<boolean>(initialData?.isCodAvailable ?? true);
 
   // Quick Add Category state
   const [showQuickAddCat, setShowQuickAddCat] = useState(false);
@@ -143,6 +149,9 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
       images,
       stock: Number(stock),
       lowStockThreshold: Number(lowStockThreshold),
+      tax: tax !== '' ? Number(tax) : 0,
+      shippingCost: shippingCost !== '' ? Number(shippingCost) : 0,
+      isCodAvailable: Boolean(isCodAvailable),
     };
 
     try {
@@ -288,6 +297,54 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Tax (₹)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={tax}
+                onChange={(e) => setTax(e.target.value)}
+                placeholder="0"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">Tax per item. Default is 0 (tax-inclusive or zero tax).</p>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Shipping Cost (₹)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={shippingCost}
+                onChange={(e) => setShippingCost(e.target.value)}
+                placeholder="0"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">Delivery fee for this item. Default is 0 (Free Shipping).</p>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-slate-800/60">
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={isCodAvailable}
+                onChange={(e) => setIsCodAvailable(e.target.checked)}
+                className="mt-1 w-4 h-4 rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-indigo-500 accent-indigo-600"
+              />
+              <div>
+                <span className="block text-sm font-medium text-slate-200 group-hover:text-white transition-colors">
+                  Cash on Delivery (COD) Available
+                </span>
+                <span className="block text-xs text-slate-400 mt-0.5">
+                  Allow customers to pay upon delivery for this item (checked by default).
+                </span>
+              </div>
+            </label>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
