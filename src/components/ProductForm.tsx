@@ -388,7 +388,18 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
 
           {/* Sizes */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Available Sizes</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-semibold text-slate-300 uppercase">Available Sizes</label>
+              {sizes.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSizes([])}
+                  className="text-xs text-rose-400 hover:text-rose-300"
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
             <div className="flex gap-2 mb-2">
               <input
                 type="text"
@@ -403,7 +414,7 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
                     }
                   }
                 }}
-                placeholder="Type size (e.g. S, M, L, XL or 7, 8, 9, 10) and press Enter"
+                placeholder="Type custom size (e.g. S, M, L, XL, XXL, Free Size, 32) and press Enter"
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
               />
               <button
@@ -420,29 +431,58 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
               </button>
             </div>
             {/* Quick size presets */}
-            <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400 mb-3">
-              <span>Quick presets:</span>
-              <button
-                type="button"
-                onClick={() => setSizes(Array.from(new Set([...sizes, 'S', 'M', 'L', 'XL', 'XXL'])))}
-                className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
-              >
-                + Clothes (S, M, L, XL, XXL)
-              </button>
-              <button
-                type="button"
-                onClick={() => setSizes(Array.from(new Set([...sizes, '6', '7', '8', '9', '10', '11'])))}
-                className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
-              >
-                + Shoes (6-11)
-              </button>
-              <button
-                type="button"
-                onClick={() => setSizes(Array.from(new Set([...sizes, 'Free Size'])))}
-                className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
-              >
-                + Free Size
-              </button>
+            <div className="space-y-2 mb-3">
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+                <span className="font-medium text-slate-300">Fashion Presets:</span>
+                <button
+                  type="button"
+                  onClick={() => setSizes(['Free Size'])}
+                  className="px-2.5 py-1 rounded bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 font-medium transition-colors"
+                  title="Sets size to single 'Free Size' (ideal for Sarees, Dupattas, Shawls, Caps, One-Size Wear)"
+                >
+                  ★ Set Only Free Size
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSizes(Array.from(new Set([...sizes, 'S', 'M', 'L', 'XL', 'XXL'])))}
+                  className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                >
+                  + Standard Clothes (S, M, L, XL, XXL)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSizes(Array.from(new Set([...sizes, 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'])))}
+                  className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                >
+                  + Full Clothing (XS–3XL)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSizes(Array.from(new Set([...sizes, '6', '7', '8', '9', '10', '11'])))}
+                  className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                >
+                  + Footwear (UK 6–11)
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+                <span>Quick Add:</span>
+                {['Free Size', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => {
+                      if (!sizes.includes(s)) setSizes([...sizes, s]);
+                    }}
+                    className={`px-2 py-0.5 rounded text-xs transition-colors ${
+                      sizes.includes(s)
+                        ? 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/40'
+                        : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300'
+                    }`}
+                  >
+                    +{s}
+                  </button>
+                ))}
+              </div>
             </div>
             {sizes.length > 0 && (
               <div className="flex flex-wrap gap-2">
