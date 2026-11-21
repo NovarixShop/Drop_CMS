@@ -133,11 +133,19 @@ export default function ProductImageManager({ images, onChange, onUploadingChang
 
   // ---------- Add by URL ----------
   const addFromUrlInput = () => {
-    const candidates = urlInput
-      .split(/[\s,]+/)
+    // Split by newlines or commas (NOT by single spaces, which breaks URLs containing spaces or %20 filenames)
+    const lines = urlInput
+      .split(/[\r\n,]+/)
       .map((u) => u.trim())
       .filter(Boolean);
-    if (candidates.length === 0) return;
+    if (lines.length === 0) return;
+
+    const candidates = lines.map((u) => {
+      if (u.includes(' ')) {
+        return encodeURI(u);
+      }
+      return u;
+    });
 
     const valid = candidates.filter(isHttpUrl);
     const invalid = candidates.filter((u) => !isHttpUrl(u));

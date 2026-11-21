@@ -21,6 +21,10 @@ import {
   X,
   PackageCheck,
   AlertTriangle,
+  Printer,
+  Send,
+  FileText,
+  Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -32,6 +36,8 @@ interface OrderItem {
   name: string;
   price: number;
   quantity: number;
+  size?: string;
+  color?: string;
 }
 
 interface OrderHistoryEntry {
@@ -81,11 +87,172 @@ export default function OrdersPage() {
   // Detail Modal
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
 
+  // Manufacturer Dispatch Modal
+  const [dispatchOrder, setDispatchOrder] = useState<Order | null>(null);
+
   // Update Status Modal
   const [statusModalOrder, setStatusModalOrder] = useState<Order | null>(null);
   const [newStatus, setNewStatus] = useState<OrderStatus>('processing');
   const [statusNote, setStatusNote] = useState('');
   const [updating, setUpdating] = useState(false);
+
+  const getManufacturerDispatchText = (order: Order) => {
+    const itemsList = order.items
+      .map(
+        (it, idx) =>
+          `${idx + 1}. ${it.name}\n   - Quantity: ${it.quantity} unit(s)\n   - Size: ${it.size || 'Standard'}\n   - Color: ${it.color || 'Standard'}\n   - Unit Price: ₹${it.price.toFixed(2)}`
+      )
+      .join('\n\n');
+
+    return `📦 NOVARIX LUXURY COMMERCE - MANUFACTURER DISPATCH SHEET
+======================================================
+Order ID: #${order._id.slice(-8).toUpperCase()}
+Tracking ID: ${order.trackingNumber || 'PENDING'}
+Order Date: ${new Date(order.createdAt).toLocaleString('en-IN')}
+
+👤 CUSTOMER & SHIPPING DESTINATION:
+Customer Name: ${order.user?.name || 'Customer'}
+Customer Email: ${order.user?.email || 'N/A'}
+Delivery Address:
+${order.shippingAddress.street}
+${order.shippingAddress.city}, ${order.shippingAddress.state} - ${order.shippingAddress.postalCode}
+${order.shippingAddress.country}
+
+🛍️ ITEMS TO PACK & DISPATCH (${order.items.length} item${order.items.length > 1 ? 's' : ''}):
+${itemsList}
+
+💳 PAYMENT & COLLECTION INSTRUCTIONS:
+Payment Method: ${order.paymentMethod === 'cod' ? 'CASH ON DELIVERY (COD)' : 'PREPAID ONLINE'}
+Payment Status: ${order.paymentStatus.toUpperCase()}
+Amount to Collect on Delivery: ${order.paymentMethod === 'cod' ? `₹${order.totals.grandTotal.toFixed(2)}` : '₹0.00 (PREPAID - DO NOT COLLECT CASH)'}
+======================================================
+Packing Note: Inspect for defects, protect thoroughly, and affix shipping label before handover to carrier.`;
+  };
+
+  const copyDispatchSheet = (order: Order) => {
+    const text = getManufacturerDispatchText(order);
+    navigator.clipboard.writeText(text);
+    toast.success('Manufacturer Dispatch Sheet copied to clipboard!', {
+      description: 'Ready to paste into WhatsApp, Email, or SMS.',
+      icon: '📋',
+    });
+  };
+
+  const printPackingSlip = (order: Order) => {
+    const printWindow = window.open('', '_blank', 'width=800,height=900');
+    if (!printWindow) {
+      toast.error('Pop-up blocked. Please allow pop-ups to print packing slip.');
+      return;
+    }
+    const itemsHtml = order.items
+      .map(
+        (it) => `
+        <tr style="border-bottom: 1px solid #e2e8f0;">
+          <td style="padding: 12px; font-weight: bold; color: #0f172a;">${it.name}</td>
+          <td style="padding: 12px; color: #475569;">${it.size || 'Standard'}</td>
+          <td style="padding: 12px; color: #475569;">${it.color || 'Standard'}</td>
+          <td style="padding: 12px; text-align: center; color: #0f172a; font-weight: bold;">${it.quantity}</td>
+          <td style="padding: 12px; text-align: right; color: #0f172a;">₹${it.price.toFixed(2)}</td>
+          <td style="padding: 12px; text-align: right; font-weight: bold; color: #0f172a;">₹${(it.price * it.quantity).toFixed(2)}</td>
+        </tr>
+      `
+      )
+      .join('');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>NOVARIX Packing Slip - #${order._id.slice(-8).toUpperCase()}</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 32px; color: #0f172a; }
+            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 24px; }
+            .brand { font-size: 24px; font-weight: 900; letter-spacing: 0.15em; text-transform: uppercase; }
+            .slip-title { font-size: 14px; font-weight: bold; text-transform: uppercase; color: #64748b; letter-spacing: 0.1em; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 28px; }
+            .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+            .card-title { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 8px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+            th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #475569; }
+            .totals { margin-left: auto; width: 280px; margin-bottom: 32px; font-size: 14px; }
+            .totals-row { display: flex; justify-content: space-between; padding: 4px 0; color: #475569; }
+            .totals-row.grand { font-size: 16px; font-weight: bold; color: #0f172a; border-top: 1px solid #0f172a; padding-top: 8px; margin-top: 4px; }
+            .footer-note { font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px dashed #cbd5e1; padding-top: 16px; }
+            @media print { body { padding: 0; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div class="brand">NOVARIX</div>
+              <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Curated Luxury & Tech Essentials</div>
+            </div>
+            <div style="text-align: right;">
+              <div class="slip-title">MANUFACTURER PACKING SLIP</div>
+              <div style="font-size: 16px; font-weight: bold; margin-top: 2px;">#${order._id.slice(-8).toUpperCase()}</div>
+              <div style="font-size: 12px; color: #64748b;">${new Date(order.createdAt).toLocaleDateString('en-IN')}</div>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="card">
+              <div class="card-title">Ship To (Customer):</div>
+              <div style="font-weight: bold; font-size: 15px;">${order.user?.name || 'Customer'}</div>
+              <div style="font-size: 13px; color: #475569; margin-top: 2px;">${order.user?.email || ''}</div>
+              <div style="font-size: 13px; margin-top: 8px; line-height: 1.4;">
+                ${order.shippingAddress.street}<br/>
+                ${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.postalCode}<br/>
+                ${order.shippingAddress.country}
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title">Order Logistics:</div>
+              <div style="font-size: 13px; margin-bottom: 4px;"><strong>Tracking No:</strong> ${order.trackingNumber || 'Pending'}</div>
+              <div style="font-size: 13px; margin-bottom: 4px;"><strong>Payment Method:</strong> ${order.paymentMethod === 'cod' ? 'Cash on Delivery (COD)' : 'Prepaid (Razorpay/Online)'}</div>
+              <div style="font-size: 13px; margin-bottom: 4px;"><strong>Payment Status:</strong> <span style="text-transform: uppercase; font-weight: bold;">${order.paymentStatus}</span></div>
+              <div style="font-size: 14px; margin-top: 8px; color: ${order.paymentMethod === 'cod' ? '#b91c1c' : '#047857'}; font-weight: bold;">
+                ${order.paymentMethod === 'cod' ? `Collect ₹${order.totals.grandTotal.toFixed(2)} on delivery` : 'DO NOT COLLECT CASH (Fully Prepaid)'}
+              </div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Item Description</th>
+                <th>Size</th>
+                <th>Color</th>
+                <th style="text-align: center;">Qty</th>
+                <th style="text-align: right;">Unit Price</th>
+                <th style="text-align: right;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+
+          <div class="totals">
+            <div class="totals-row"><span>Subtotal:</span><span>₹${order.totals.subtotal.toFixed(2)}</span></div>
+            ${order.totals.discount > 0 ? `<div class="totals-row" style="color: #047857;"><span>Discount:</span><span>-₹${order.totals.discount.toFixed(2)}</span></div>` : ''}
+            <div class="totals-row"><span>Tax:</span><span>₹${order.totals.tax.toFixed(2)}</span></div>
+            <div class="totals-row"><span>Shipping:</span><span>${order.totals.shipping === 0 ? 'FREE' : `₹${order.totals.shipping.toFixed(2)}`}</span></div>
+            <div class="totals-row grand"><span>Grand Total:</span><span>₹${order.totals.grandTotal.toFixed(2)}</span></div>
+          </div>
+
+          <div class="footer-note">
+            Thank you for choosing NOVARIX. For customer support or order inquiries, contact support@novarixshop.tech.
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 300);
+  };
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -487,6 +654,22 @@ export default function OrdersPage() {
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button
+                              onClick={() => copyDispatchSheet(order)}
+                              title="Copy Manufacturer Dispatch Sheet (WhatsApp / Email)"
+                              className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 transition-colors"
+                            >
+                              <Send className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              onClick={() => printPackingSlip(order)}
+                              title="Print Packing Slip"
+                              className="p-2 rounded-lg bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 border border-sky-500/30 transition-colors"
+                            >
+                              <Printer className="w-4 h-4" />
+                            </button>
+
+                            <button
                               onClick={() => {
                                 setStatusModalOrder(order);
                                 setNewStatus(order.orderStatus);
@@ -667,9 +850,21 @@ export default function OrdersPage() {
                     <div key={idx} className="p-3.5 flex items-center justify-between text-sm">
                       <div>
                         <p className="font-medium text-white">{item.name}</p>
-                        <p className="text-xs text-slate-400">
-                          ₹{item.price.toFixed(2)} × {item.quantity} units
-                        </p>
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                          <span className="text-xs text-slate-400">
+                            ₹{item.price.toFixed(2)} × {item.quantity} units
+                          </span>
+                          {item.size && (
+                            <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-[11px] font-semibold border border-indigo-500/30">
+                              Size: {item.size}
+                            </span>
+                          )}
+                          {item.color && (
+                            <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[11px] font-semibold border border-emerald-500/30">
+                              Color: {item.color}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <span className="font-bold text-slate-200">
                         ₹{(item.price * item.quantity).toFixed(2)}
@@ -740,7 +935,23 @@ export default function OrdersPage() {
                 </div>
               )}
 
-              <div className="flex justify-end pt-4 border-t border-slate-800">
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-800">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => copyDispatchSheet(activeOrder)}
+                    className="px-3.5 py-2 bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/40 text-emerald-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    Copy Manufacturer Dispatch Sheet
+                  </button>
+                  <button
+                    onClick={() => printPackingSlip(activeOrder)}
+                    className="px-3.5 py-2 bg-sky-600/15 hover:bg-sky-600/25 border border-sky-500/40 text-sky-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    Print Packing Slip
+                  </button>
+                </div>
                 <button
                   onClick={() => {
                     setStatusModalOrder(activeOrder);
