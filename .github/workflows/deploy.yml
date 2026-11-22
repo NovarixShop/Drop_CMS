@@ -85,12 +85,14 @@ jobs:
               rm -f /swapfile 2>/dev/null || true
             fi
             rm -rf /tmp/* /root/.npm/_cacache /home/ubuntu/.npm/_cacache 2>/dev/null || true
+            export npm_config_cache="/tmp/npm-cache-cms"
+            rm -rf /tmp/npm-cache-cms 2>/dev/null || true
 
             echo "📦 Clearing stale Next build artifacts and cached modules..."
             rm -rf .next node_modules
 
             export NODE_OPTIONS="--max-old-space-size=1536"
-            npm install --no-audit --no-fund
+            npm install --no-audit --no-fund --cache /tmp/npm-cache-cms || (rm -rf /tmp/npm-cache-cms && npm install --no-audit --no-fund --cache /tmp/npm-cache-cms --force)
             npm run build
             
             echo "🔄 Restarting CMS application across PM2 / systemd / port 3001..."
