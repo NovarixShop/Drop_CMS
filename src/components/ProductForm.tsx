@@ -97,9 +97,11 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
 
       // Determine initial selection
       const initialTargetId =
-        typeof initialData?.category === 'object'
-          ? (initialData.category as any)._id
-          : initialData?.category || '';
+        typeof initialData?.category === 'object' && initialData.category !== null && '_id' in initialData.category
+          ? (initialData.category as { _id: string })._id
+          : typeof initialData?.category === 'string'
+          ? initialData.category
+          : '';
 
       if (initialTargetId) {
         const topNode = list.find((n) => n._id === initialTargetId);
