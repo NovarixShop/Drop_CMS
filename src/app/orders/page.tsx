@@ -350,9 +350,9 @@ Packing Note: Inspect for defects, protect thoroughly, and affix shipping label 
         );
       case 'processing':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/20">
-            <RefreshCw className="w-3.5 h-3.5" />
-            Processing
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Payment Done
           </span>
         );
       case 'shipped':
@@ -472,11 +472,11 @@ Packing Note: Inspect for defects, protect thoroughly, and affix shipping label 
             onClick={() => setStatusFilter('processing')}
             className={`p-4 rounded-xl border text-left transition-all ${
               statusFilter === 'processing'
-                ? 'bg-sky-500/15 border-sky-500/50 text-white shadow-sm'
+                ? 'bg-emerald-500/15 border-emerald-500/50 text-white shadow-sm'
                 : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
             }`}
           >
-            <span className="block text-xs uppercase tracking-wider font-semibold text-sky-400">Processing</span>
+            <span className="block text-xs uppercase tracking-wider font-semibold text-emerald-400">Payment Done</span>
             <span className="block text-2xl font-bold mt-1 text-white">{stats.processing}</span>
           </button>
 
@@ -729,7 +729,7 @@ Packing Note: Inspect for defects, protect thoroughly, and affix shipping label 
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 font-medium"
                   >
                     <option value="pending">PENDING (Awaiting review or payment)</option>
-                    <option value="processing">PROCESSING (Packing & preparing)</option>
+                    <option value="processing">PAYMENT DONE (Payment received & verified)</option>
                     <option value="shipped">SHIPPED (Handed over to courier)</option>
                     <option value="delivered">DELIVERED (Fulfilled & received)</option>
                     <option value="cancelled">CANCELLED (Cancel order & restore inventory)</option>
