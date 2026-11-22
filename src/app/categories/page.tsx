@@ -32,6 +32,7 @@ export interface FlatCategory {
   parentCategory?: string | null;
   parentName?: string;
   level: number;
+  childrenCount: number;
 }
 
 export default function CategoriesPage() {
@@ -42,8 +43,10 @@ export default function CategoriesPage() {
 
   // Add category state
   const [showAddModal, setShowAddModal] = useState(false);
+  const [modalType, setModalType] = useState<'category' | 'subcategory'>('category');
   const [newCatName, setNewCatName] = useState('');
   const [newCatParent, setNewCatParent] = useState('');
+  const [targetParentName, setTargetParentName] = useState('');
 
   // Edit category state
   const [editingCategory, setEditingCategory] = useState<CategoryNode | null>(null);
@@ -82,6 +85,7 @@ export default function CategoriesPage() {
         parentCategory: node.parentCategory,
         parentName,
         level,
+        childrenCount: node.children?.length || 0,
       });
       if (node.children && node.children.length > 0) {
         result = result.concat(flattenTree(node.children, level + 1, node.name));
@@ -97,6 +101,28 @@ export default function CategoriesPage() {
       c.slug.toLowerCase().includes(search.toLowerCase())
   );
 
+  const handleOpenAddCategory = () => {
+    setModalType('category');
+    setNewCatParent('');
+    setTargetParentName('');
+    setNewCatName('');
+    setShowAddModal(true);
+  };
+
+  const handleOpenAddSubcategory = (parentCat?: FlatCategory | CategoryNode) => {
+    setModalType('subcategory');
+    if (parentCat) {
+      setNewCatParent(parentCat._id);
+      setTargetParentName(parentCat.name);
+    } else {
+      const firstParent = flatCategories[0];
+      setNewCatParent(firstParent?._id || '');
+      setTargetParentName(firstParent?.name || '');
+    }
+    setNewCatName('');
+    setShowAddModal(true);
+  };
+
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCatName.trim()) {
@@ -104,15 +130,25 @@ export default function CategoriesPage() {
       return;
     }
 
+    if (modalType === 'subcategory' && !newCatParent) {
+      toast.error('Please select a parent category for the subcategory.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       await api.post('/categories', {
         name: newCatName.trim(),
-        parentCategory: newCatParent || null,
+        parentCategory: modalType === 'subcategory' ? (newCatParent || null) : null,
       });
-      toast.success(`Category "${newCatName.trim()}" created successfully!`);
+      toast.success(
+        modalType === 'subcategory'
+          ? `Subcategory "${newCatName.trim()}" created successfully!`
+          : `Category "${newCatName.trim()}" created successfully!`
+      );
       setNewCatName('');
       setNewCatParent('');
+      setTargetParentName('');
       setShowAddModal(false);
       await loadCategories();
     } catch (err) {
@@ -203,7 +239,15 @@ export default function CategoriesPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setShowAddModal(true)}
+                onClick={() => handleOpenAddSubcategory()}
+                className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-indigo-300 hover:text-white font-medium px-4 py-2.5 rounded-xl border border-indigo-500/30 transition-all cursor-pointer text-sm shadow-sm"
+              >
+                <Plus className="w-4 h-4 text-indigo-400" />
+                <span>Add Subcategory</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleOpenAddCategory}
                 className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2.5 rounded-xl transition-all shadow-md shadow-indigo-600/20 cursor-pointer text-sm"
               >
                 <Plus className="w-4 h-4" />
@@ -271,14 +315,26 @@ export default function CategoriesPage() {
                     : 'Create your first custom category to start organizing products.'}
                 </p>
                 {!search && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAddModal(true)}
-                    className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2 rounded-xl text-sm transition-all"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Create Category</span>
-                  </button>
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleOpenAddCategory}
+                      className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2 rounded-xl text-sm transition-all"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Create Category</span>
+                    </button>
+                    {flatCategories.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenAddSubcategory()}
+                        className="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-indigo-300 font-medium px-4 py-2 rounded-xl text-sm transition-all border border-indigo-500/20"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Create Subcategory</span>
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             ) : (
@@ -300,8 +356,8 @@ export default function CategoriesPage() {
                       >
                         <td className="px-6 py-4">
                           <div
-                            className="flex items-center gap-2"
-                            style={{ paddingLeft: `${cat.level * 20}px` }}
+                            className="flex items-center gap-2.5"
+                            style={{ paddingLeft: `${cat.level * 24}px` }}
                           >
                             {cat.level > 0 ? (
                               <CornerDownRight className="w-4 h-4 text-indigo-400 flex-shrink-0" />
@@ -309,6 +365,18 @@ export default function CategoriesPage() {
                               <Folder className="w-4 h-4 text-indigo-400 flex-shrink-0" />
                             )}
                             <span className="font-medium text-white">{cat.name}</span>
+                            {cat.level === 0 && (
+                              <span
+                                className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+                                  cat.childrenCount > 0
+                                    ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20'
+                                    : 'bg-slate-800/80 text-slate-500 border border-slate-700/40'
+                                }`}
+                              >
+                                {cat.childrenCount}{' '}
+                                {cat.childrenCount === 1 ? 'subcategory' : 'subcategories'}
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -319,14 +387,30 @@ export default function CategoriesPage() {
                         <td className="px-6 py-4">
                           {cat.parentName ? (
                             <span className="inline-flex items-center gap-1.5 text-xs text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-full">
-                              <span className="text-slate-400">Parent:</span> {cat.parentName}
+                              <CornerDownRight className="w-3 h-3 text-indigo-400" />
+                              <span className="text-slate-400">Subcategory of:</span>{' '}
+                              <span className="font-semibold text-white">{cat.parentName}</span>
                             </span>
                           ) : (
-                            <span className="text-xs text-slate-500 italic">Top-Level</span>
+                            <span className="inline-flex items-center gap-1.5 text-xs text-slate-300 bg-slate-800/60 border border-slate-700/50 px-2.5 py-1 rounded-full">
+                              <Folder className="w-3 h-3 text-slate-400" />
+                              <span>Top-Level Category</span>
+                            </span>
                           )}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {/* Explicit "+ Subcategory" button on every category */}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAddSubcategory(cat)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 hover:text-white border border-indigo-500/30 transition-all cursor-pointer shadow-sm active:scale-95"
+                              title={`Add subcategory under ${cat.name}`}
+                            >
+                              <Plus className="w-3.5 h-3.5 text-indigo-400" />
+                              <span>Subcategory</span>
+                            </button>
+
                             <button
                               type="button"
                               onClick={() => handleStartEdit(cat)}
@@ -355,7 +439,7 @@ export default function CategoriesPage() {
         </div>
       </main>
 
-      {/* Modal: Add Category */}
+      {/* Modal: Add Category / Subcategory */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
@@ -364,7 +448,20 @@ export default function CategoriesPage() {
                 <div className="p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400">
                   <Plus className="w-5 h-5" />
                 </div>
-                <h2 className="text-lg font-bold text-white">Create Custom Category</h2>
+                <div>
+                  <h2 className="text-lg font-bold text-white">
+                    {modalType === 'subcategory'
+                      ? targetParentName
+                        ? `Add Subcategory under "${targetParentName}"`
+                        : 'Create New Subcategory'
+                      : 'Create Top-Level Category'}
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {modalType === 'subcategory'
+                      ? 'Create a nested subcategory under a parent category'
+                      : 'Create a primary top-level category'}
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
@@ -375,41 +472,88 @@ export default function CategoriesPage() {
               </button>
             </div>
 
+            {/* Type Switcher Tabs */}
+            <div className="grid grid-cols-2 p-1 bg-slate-950 border border-slate-800 rounded-xl text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => {
+                  setModalType('category');
+                  setNewCatParent('');
+                  setTargetParentName('');
+                }}
+                className={`py-2 rounded-lg transition-all ${
+                  modalType === 'category'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Top-Level Category
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setModalType('subcategory');
+                  if (!newCatParent && flatCategories.length > 0) {
+                    setNewCatParent(flatCategories[0]._id);
+                    setTargetParentName(flatCategories[0].name);
+                  }
+                }}
+                className={`py-2 rounded-lg transition-all ${
+                  modalType === 'subcategory'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Subcategory
+              </button>
+            </div>
+
             <form onSubmit={handleCreateCategory} className="space-y-4">
+              {modalType === 'subcategory' && (
+                <div>
+                  <label className="block text-xs font-semibold uppercase text-slate-300 mb-1.5">
+                    Parent Category *
+                  </label>
+                  <select
+                    required
+                    value={newCatParent}
+                    onChange={(e) => {
+                      setNewCatParent(e.target.value);
+                      const p = flatCategories.find((c) => c._id === e.target.value);
+                      setTargetParentName(p?.name || '');
+                    }}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
+                  >
+                    <option value="" disabled>Select parent category...</option>
+                    {flatCategories.map((c) => (
+                      <option key={c._id} value={c._id}>
+                        {c.level > 0 ? `— `.repeat(c.level) : ''} {c.name} {c.level === 0 ? '(Top-Level)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-500 mt-1">
+                    This subcategory will appear under the selected parent category.
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold uppercase text-slate-300 mb-1.5">
-                  Category Name *
+                  {modalType === 'subcategory' ? 'Subcategory Name *' : 'Category Name *'}
                 </label>
                 <input
                   type="text"
                   required
                   value={newCatName}
                   onChange={(e) => setNewCatName(e.target.value)}
-                  placeholder="e.g. Footwear, Electronics, Watches"
+                  placeholder={
+                    modalType === 'subcategory'
+                      ? 'e.g. Shirts, Jeans, Kurtis, Sarees, Headphones'
+                      : 'e.g. CLOTHING, Footwear, Electronics'
+                  }
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
                   autoFocus
                 />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase text-slate-300 mb-1.5">
-                  Parent Category (Optional)
-                </label>
-                <select
-                  value={newCatParent}
-                  onChange={(e) => setNewCatParent(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-colors"
-                >
-                  <option value="">None (Top-Level Category)</option>
-                  {flatCategories.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.level > 0 ? `— `.repeat(c.level) : ''} {c.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-slate-500 mt-1">
-                  Choose a parent if this is a subcategory (e.g. Shoes under Fashion).
-                </p>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
@@ -430,7 +574,7 @@ export default function CategoriesPage() {
                   ) : (
                     <Check className="w-4 h-4" />
                   )}
-                  <span>Save Category</span>
+                  <span>{modalType === 'subcategory' ? 'Save Subcategory' : 'Save Category'}</span>
                 </button>
               </div>
             </form>
