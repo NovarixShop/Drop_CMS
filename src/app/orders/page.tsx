@@ -25,6 +25,8 @@ import {
   Send,
   FileText,
   Check,
+  Phone,
+  Mail,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -52,6 +54,7 @@ interface Order {
     _id?: string;
     name?: string;
     email?: string;
+    phone?: string;
   };
   items: OrderItem[];
   shippingAddress: {
@@ -60,6 +63,7 @@ interface Order {
     state: string;
     postalCode: string;
     country: string;
+    phone?: string;
   };
   totals: {
     subtotal: number;
@@ -113,6 +117,7 @@ Order Date: ${new Date(order.createdAt).toLocaleString('en-IN')}
 👤 CUSTOMER & SHIPPING DESTINATION:
 Customer Name: ${order.user?.name || 'Customer'}
 Customer Email: ${order.user?.email || 'N/A'}
+Customer Phone: ${order.shippingAddress.phone || order.user?.phone || 'N/A'}
 Delivery Address:
 ${order.shippingAddress.street}
 ${order.shippingAddress.city}, ${order.shippingAddress.state} - ${order.shippingAddress.postalCode}
@@ -199,6 +204,7 @@ Packing Note: Inspect for defects, protect thoroughly, and affix shipping label 
               <div class="card-title">Ship To (Customer):</div>
               <div style="font-weight: bold; font-size: 15px;">${order.user?.name || 'Customer'}</div>
               <div style="font-size: 13px; color: #475569; margin-top: 2px;">${order.user?.email || ''}</div>
+              ${(order.shippingAddress.phone || order.user?.phone) ? `<div style="font-size: 13px; color: #0284c7; font-weight: 600; margin-top: 4px;">Phone: ${order.shippingAddress.phone || order.user?.phone}</div>` : ''}
               <div style="font-size: 13px; margin-top: 8px; line-height: 1.4;">
                 ${order.shippingAddress.street}<br/>
                 ${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.postalCode}<br/>
@@ -615,9 +621,15 @@ Packing Note: Inspect for defects, protect thoroughly, and affix shipping label 
                             {order.user?.name || 'Customer'}
                           </p>
                           <p className="text-xs text-slate-400 truncate max-w-[180px]">
-                            {order.user?.email || order.shippingAddress.city}
+                            {order.user?.email || 'N/A'}
                           </p>
-                          <p className="text-[11px] text-slate-500">
+                          {(order.shippingAddress.phone || order.user?.phone) && (
+                            <p className="text-xs text-sky-400 font-semibold flex items-center gap-1 mt-0.5">
+                              <Phone className="w-3 h-3" />
+                              <span>{order.shippingAddress.phone || order.user?.phone}</span>
+                            </p>
+                          )}
+                          <p className="text-[11px] text-slate-500 mt-0.5">
                             {order.shippingAddress.city}, {order.shippingAddress.state}
                           </p>
                         </td>
@@ -816,19 +828,32 @@ Packing Note: Inspect for defects, protect thoroughly, and affix shipping label 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
                   <span className="text-xs uppercase font-semibold text-slate-400 tracking-wider block mb-2">
-                    Customer Information
+                    Customer Credentials
                   </span>
                   <p className="text-sm font-bold text-white">{activeOrder.user?.name || 'Customer'}</p>
-                  <p className="text-xs text-slate-300 mt-0.5">{activeOrder.user?.email || 'No email provided'}</p>
+                  <p className="text-xs text-slate-300 mt-1 flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-slate-500" />
+                    <span>{activeOrder.user?.email || 'No email provided'}</span>
+                  </p>
+                  <p className="text-xs text-sky-400 mt-1.5 flex items-center gap-1.5 font-semibold">
+                    <Phone className="w-3.5 h-3.5" />
+                    {activeOrder.shippingAddress?.phone || activeOrder.user?.phone ? (
+                      <a href={`tel:${activeOrder.shippingAddress?.phone || activeOrder.user?.phone}`} className="hover:underline">
+                        {activeOrder.shippingAddress?.phone || activeOrder.user?.phone}
+                      </a>
+                    ) : (
+                      <span className="text-slate-500 italic font-normal">No phone provided</span>
+                    )}
+                  </p>
                   <span className="inline-block mt-3 text-[11px] font-mono text-slate-500 bg-slate-900 px-2 py-0.5 rounded">
-                    User ID: {typeof activeOrder.user === 'object' ? activeOrder.user?._id : activeOrder.user}
+                    User ID: {typeof activeOrder.user === 'object' ? activeOrder.user?._id : activeOrder.user || 'Guest'}
                   </span>
                 </div>
 
                 <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
                   <span className="text-xs uppercase font-semibold text-slate-400 tracking-wider block mb-2 flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-indigo-400" />
-                    Shipping Address
+                    Shipping & Delivery Address
                   </span>
                   <p className="text-sm text-slate-200 leading-relaxed">
                     {activeOrder.shippingAddress.street}
@@ -837,6 +862,12 @@ Packing Note: Inspect for defects, protect thoroughly, and affix shipping label 
                     <br />
                     {activeOrder.shippingAddress.country}
                   </p>
+                  {activeOrder.shippingAddress?.phone && (
+                    <p className="text-xs text-sky-400 font-semibold mt-2 flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5" />
+                      <span>Delivery Phone: {activeOrder.shippingAddress.phone}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 

@@ -44,6 +44,9 @@ interface ProductFormProps {
 export default function ProductForm({ initialData, productId }: ProductFormProps) {
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryTree, setCategoryTree] = useState<CategoryTreeNode[]>([]);
+  const [mainCategoryId, setMainCategoryId] = useState<string>('');
+  const [subCategoryId, setSubCategoryId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [fetchingCategories, setFetchingCategories] = useState(true);
   const [error, setError] = useState('');
@@ -87,16 +90,57 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
   const loadCategories = async () => {
     try {
       const res = await api.get('/categories');
-      const list = res.data.data?.categories || res.data.data || [];
+      const list: CategoryTreeNode[] = res.data.data?.categories || res.data.data || [];
+      setCategoryTree(list);
       const flat = flattenCategoryTree(list);
       setCategories(flat);
-      if (!categoryId && flat.length > 0) {
-        setCategoryId(flat[0]._id);
+
+      // Determine initial selection
+      const initialTargetId =
+        typeof initialData?.category === 'object'
+          ? (initialData.category as any)._id
+          : initialData?.category || '';
+
+      if (initialTargetId) {
+        const topNode = list.find((n) => n._id === initialTargetId);
+        if (topNode) {
+          setMainCategoryId(topNode._id);
+          setSubCategoryId('');
+          setCategoryId(topNode._id);
+        } else {
+          const parentNode = list.find((n) => n.children?.some((c) => c._id === initialTargetId));
+          if (parentNode) {
+            setMainCategoryId(parentNode._id);
+            setSubCategoryId(initialTargetId);
+            setCategoryId(initialTargetId);
+          } else {
+            setCategoryId(initialTargetId);
+          }
+        }
+      } else if (list.length > 0) {
+        setMainCategoryId(list[0]._id);
+        setSubCategoryId('');
+        setCategoryId(list[0]._id);
       }
     } catch (err) {
       console.error('Failed to load categories', err);
     } finally {
       setFetchingCategories(false);
+    }
+  };
+
+  const handleMainCategoryChange = (val: string) => {
+    setMainCategoryId(val);
+    setSubCategoryId('');
+    setCategoryId(val);
+  };
+
+  const handleSubCategoryChange = (val: string) => {
+    setSubCategoryId(val);
+    if (val) {
+      setCategoryId(val);
+    } else {
+      setCategoryId(mainCategoryId);
     }
   };
 
@@ -120,14 +164,24 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
       setQuickCatName('');
       setQuickCatParent('');
       setShowQuickAddCat(false);
-      
+
       // Reload categories and automatically select the newly created one
       const catRes = await api.get('/categories');
-      const list = catRes.data.data?.categories || catRes.data.data || [];
+      const list: CategoryTreeNode[] = catRes.data.data?.categories || catRes.data.data || [];
+      setCategoryTree(list);
       const flat = flattenCategoryTree(list);
       setCategories(flat);
+
       if (newCat?._id) {
-        setCategoryId(newCat._id);
+        if (newCat.parentCategory) {
+          setMainCategoryId(newCat.parentCategory);
+          setSubCategoryId(newCat._id);
+          setCategoryId(newCat._id);
+        } else {
+          setMainCategoryId(newCat._id);
+          setSubCategoryId('');
+          setCategoryId(newCat._id);
+        }
       }
     } catch (err) {
       toast.error(getErrorMessage(err, 'Failed to create category.'));
@@ -232,25 +286,31 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-xs font-semibold text-slate-300 uppercase">
-                Category *
+                Category & Sub-category *
               </label>
               <button
                 type="button"
-                onClick={() => setShowQuickAddCat(true)}
+                onClick={() => {
+                  setQuickCatParent(mainCategoryId || '');
+                  setShowQuickAddCat(true);
+                }}
                 className="text-xs text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center gap-1 transition-colors cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>New Category</span>
+                <span>New Category / Sub-category</span>
               </button>
             </div>
             {fetchingCategories ? (
               <p className="text-xs text-slate-500">Loading categories...</p>
-            ) : categories.length === 0 ? (
+            ) : categoryTree.length === 0 ? (
               <div className="p-4 bg-slate-950 border border-dashed border-slate-800 rounded-xl text-center space-y-2">
                 <p className="text-xs text-slate-400">No categories found in store.</p>
                 <button
                   type="button"
-                  onClick={() => setShowQuickAddCat(true)}
+                  onClick={() => {
+                    setQuickCatParent('');
+                    setShowQuickAddCat(true);
+                  }}
                   className="inline-flex items-center gap-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -258,20 +318,66 @@ export default function ProductForm({ initialData, productId }: ProductFormProps
                 </button>
               </div>
             ) : (
-              <select
-                required
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
-              >
-                <option value="">Select a category</option>
-                {categories.map((cat) => (
-                  <option key={cat._id} value={cat._id}>
-                    {cat.level && cat.level > 0 ? `— `.repeat(cat.level) : ''}
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1">
+                    Primary / Top Category *
+                  </label>
+                  <select
+                    required
+                    value={mainCategoryId}
+                    onChange={(e) => handleMainCategoryChange(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="">Select primary category</option>
+                    {categoryTree.map((cat) => (
+                      <option key={cat._id} value={cat._id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1 flex items-center justify-between">
+                    <span>Sub-category (Optional)</span>
+                    {(() => {
+                      const selectedNode = categoryTree.find((n) => n._id === mainCategoryId);
+                      const subs = selectedNode?.children || [];
+                      return subs.length > 0 ? (
+                        <span className="text-[10px] text-indigo-400 font-semibold">
+                          {subs.length} available
+                        </span>
+                      ) : null;
+                    })()}
+                  </label>
+                  <select
+                    value={subCategoryId}
+                    onChange={(e) => handleSubCategoryChange(e.target.value)}
+                    disabled={!mainCategoryId}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 disabled:opacity-50"
+                  >
+                    {(() => {
+                      const selectedNode = categoryTree.find((n) => n._id === mainCategoryId);
+                      const subs = selectedNode?.children || [];
+                      return (
+                        <>
+                          <option value="">
+                            {subs.length > 0
+                              ? `General / Top (${selectedNode?.name || 'Category'})`
+                              : 'None (Directly under primary category)'}
+                          </option>
+                          {subs.map((sub) => (
+                            <option key={sub._id} value={sub._id}>
+                              ↳ {sub.name}
+                            </option>
+                          ))}
+                        </>
+                      );
+                    })()}
+                  </select>
+                </div>
+              </div>
             )}
           </div>
         </div>
