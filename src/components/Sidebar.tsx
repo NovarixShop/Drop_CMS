@@ -33,9 +33,9 @@ export default function Sidebar() {
           <Image
             src="/logo-dark.png"
             alt="NOVARIX"
-            width={140}
-            height={44}
-            className="h-10 w-auto object-contain"
+            width={180}
+            height={28}
+            className="h-6 w-auto object-contain"
           />
         </div>
 
